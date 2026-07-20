@@ -1,0 +1,1552 @@
+{
+  "info": {
+    "name": "YooKassa API v3",
+    "description": "Неофициальная Postman-коллекция для работы с API ЮKassa (YooKassa) v3.\n\nДокументация: https://yookassa.ru/developers/api\n\n## Настройка\n1. Импортируйте коллекцию в Postman.\n2. В переменных коллекции укажите `shop_id` (Идентификатор магазина) и `secret_key` (Секретный ключ) из личного кабинета ЮKassa.\n3. Авторизация (Basic) и заголовок `Idempotence-Key` подставляются автоматически.\n\nТестовые данные для оплаты: карта 5555 5555 5555 4444, любой срок и CVC — платёж пройдёт в тестовом магазине.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{shop_id}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{secret_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Идемпотентность: для POST-запросов заголовок Idempotence-Key",
+          "// задан значением {{$guid}} и генерируется при каждой отправке.",
+          "// Здесь при необходимости можно задать invoice_expires_at и т.п.",
+          "if (!pm.collectionVariables.get('invoice_expires_at')) {",
+          "    var d = new Date(Date.now() + 24*60*60*1000);",
+          "    pm.collectionVariables.set('invoice_expires_at', d.toISOString());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.yookassa.ru/v3",
+      "type": "string"
+    },
+    {
+      "key": "shop_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "secret_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refund_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "receipt_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoice_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_method_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payout_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deal_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "personal_data_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "self_employed_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webhook_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoice_expires_at",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Платежи",
+      "item": [
+        {
+          "name": "Создать платёж",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "Создаёт объект платежа. `capture: true` — списание сразу, `false` — двухстадийная оплата (холдирование). В ответе — `confirmation.confirmation_url`, куда нужно перенаправить покупателя. ID из ответа сохраняется в переменную `payment_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"value\": \"100.00\",\n    \"currency\": \"RUB\"\n  },\n  \"capture\": true,\n  \"confirmation\": {\n    \"type\": \"redirect\",\n    \"return_url\": \"https://www.example.com/return_url\"\n  },\n  \"description\": \"Заказ №37\",\n  \"metadata\": {\n    \"order_id\": \"37\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"payment_id\", data.id);",
+                  "    console.log(\"Сохранён payment_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список платежей",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payments?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "succeeded",
+                  "disabled": true
+                },
+                {
+                  "key": "created_at.gte",
+                  "value": "2024-01-01T00:00:00.000Z",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Возвращает список платежей с фильтрацией и постраничной навигацией (курсор `cursor` из поля `next_cursor`). Фильтры: `status`, `payment_method`, `created_at.gte/gt/lte/lt`, `captured_at.*`, `limit` (1–100)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о платеже",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "Возвращает данные о конкретном платеже по его идентификатору."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Подтвердить платёж (capture)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/capture",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "{{payment_id}}",
+                "capture"
+              ]
+            },
+            "description": "Списывает захолдированные средства для платежа в статусе `waiting_for_capture`. Сумма может быть меньше или равна изначальной. Тело можно оставить пустым `{}` для полного списания.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"value\": \"100.00\",\n    \"currency\": \"RUB\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Отменить платёж (cancel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payments/{{payment_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payments",
+                "{{payment_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Отменяет платёж в статусе `waiting_for_capture` и разблокирует захолдированные средства.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Возвраты",
+      "item": [
+        {
+          "name": "Создать возврат",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/refunds",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "refunds"
+              ]
+            },
+            "description": "Создаёт возврат по успешному платежу (`status: succeeded`). Возможен частичный возврат. ID сохраняется в `refund_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_id\": \"{{payment_id}}\",\n  \"amount\": {\n    \"value\": \"100.00\",\n    \"currency\": \"RUB\"\n  },\n  \"description\": \"Возврат по заказу №37\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"refund_id\", data.id);",
+                  "    console.log(\"Сохранён refund_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список возвратов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/refunds?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "refunds"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "payment_id",
+                  "value": "{{payment_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "succeeded",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Список возвратов с фильтрами: `payment_id`, `status`, `created_at.*`, `limit`, `cursor`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о возврате",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/refunds/{{refund_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "refunds",
+                "{{refund_id}}"
+              ]
+            },
+            "description": "Возвращает данные о конкретном возврате."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Чеки",
+      "item": [
+        {
+          "name": "Создать чек",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/receipts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "receipts"
+              ]
+            },
+            "description": "Формирует чек по 54-ФЗ (приход/возврат прихода). Используется при раздельной передаче данных о платеже и чеке. ID сохраняется в `receipt_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"refund\",\n  \"payment_id\": \"{{payment_id}}\",\n  \"send\": true,\n  \"customer\": {\n    \"email\": \"test@example.com\"\n  },\n  \"settlements\": [\n    {\n      \"type\": \"prepayment\",\n      \"amount\": {\n        \"value\": \"100.00\",\n        \"currency\": \"RUB\"\n      }\n    }\n  ],\n  \"items\": [\n    {\n      \"description\": \"Товар\",\n      \"quantity\": \"1.00\",\n      \"amount\": {\n        \"value\": \"100.00\",\n        \"currency\": \"RUB\"\n      },\n      \"vat_code\": 1,\n      \"payment_mode\": \"full_payment\",\n      \"payment_subject\": \"commodity\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"receipt_id\", data.id);",
+                  "    console.log(\"Сохранён receipt_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список чеков",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/receipts?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "receipts"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "payment_id",
+                  "value": "{{payment_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "succeeded",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Список чеков. Фильтры: `payment_id`, `refund_id`, `status`, `created_at.*`, `limit`, `cursor`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о чеке",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/receipts/{{receipt_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "receipts",
+                "{{receipt_id}}"
+              ]
+            },
+            "description": "Возвращает данные о конкретном чеке."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Счета (Invoices)",
+      "item": [
+        {
+          "name": "Создать счёт",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/invoices",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "invoices"
+              ]
+            },
+            "description": "Создаёт выставленный счёт на оплату. В ответе — ссылка на оплату счёта. ID сохраняется в `invoice_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_data\": {\n    \"amount\": {\n      \"value\": \"250.00\",\n      \"currency\": \"RUB\"\n    },\n    \"capture\": true\n  },\n  \"cart\": [\n    {\n      \"description\": \"Товар\",\n      \"price\": {\n        \"value\": \"250.00\",\n        \"currency\": \"RUB\"\n      },\n      \"quantity\": \"1\"\n    }\n  ],\n  \"delivery_method_data\": {\n    \"type\": \"self\"\n  },\n  \"expires_at\": \"{{invoice_expires_at}}\",\n  \"description\": \"Счёт №37\",\n  \"metadata\": {\n    \"order_id\": \"37\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"invoice_id\", data.id);",
+                  "    console.log(\"Сохранён invoice_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о счёте",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/invoices/{{invoice_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoice_id}}"
+              ]
+            },
+            "description": "Возвращает данные о выставленном счёте."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Способы оплаты",
+      "item": [
+        {
+          "name": "Создать способ оплаты",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment_methods",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment_methods"
+              ]
+            },
+            "description": "Сохраняет способ оплаты (например, банковскую карту) для последующих автоплатежей. ID сохраняется в `payment_method_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"bank_card\",\n  \"confirmation\": {\n    \"type\": \"redirect\",\n    \"return_url\": \"https://www.example.com/return_url\"\n  },\n  \"card\": {\n    \"number\": \"5555555555554444\",\n    \"expiry_year\": \"2027\",\n    \"expiry_month\": \"07\",\n    \"csc\": \"123\",\n    \"cardholder\": \"IVAN IVANOV\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"payment_method_id\", data.id);",
+                  "    console.log(\"Сохранён payment_method_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о способе оплаты",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payment_methods/{{payment_method_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment_methods",
+                "{{payment_method_id}}"
+              ]
+            },
+            "description": "Возвращает данные о сохранённом способе оплаты."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Выплаты",
+      "item": [
+        {
+          "name": "Создать выплату",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payouts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payouts"
+              ]
+            },
+            "description": "Создаёт выплату на банковскую карту, кошелёк ЮMoney или по СБП. Требует подключённого сервиса выплат. ID сохраняется в `payout_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {\n    \"value\": \"320.00\",\n    \"currency\": \"RUB\"\n  },\n  \"payout_destination_data\": {\n    \"type\": \"bank_card\",\n    \"card\": {\n      \"number\": \"5555555555554477\"\n    }\n  },\n  \"description\": \"Выплата по заказу №37\",\n  \"metadata\": {\n    \"order_id\": \"37\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"payout_id\", data.id);",
+                  "    console.log(\"Сохранён payout_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о выплате",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payouts/{{payout_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payouts",
+                "{{payout_id}}"
+              ]
+            },
+            "description": "Возвращает данные о конкретной выплате."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Сделки (SafeDeal)",
+      "item": [
+        {
+          "name": "Создать сделку",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/deals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deals"
+              ]
+            },
+            "description": "Создаёт безопасную сделку для платформ и маркетплейсов. ID сохраняется в `deal_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"safe_deal\",\n  \"fee_moment\": \"payment_succeeded\",\n  \"description\": \"SafeDeal 37\",\n  \"metadata\": {\n    \"order_id\": \"37\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"deal_id\", data.id);",
+                  "    console.log(\"Сохранён deal_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список сделок",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/deals?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deals"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "opened",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Список сделок. Фильтры: `status`, `created_at.*`, `expires_at.*`, `limit`, `cursor`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о сделке",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/deals/{{deal_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "deals",
+                "{{deal_id}}"
+              ]
+            },
+            "description": "Возвращает данные о конкретной сделке."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Персональные данные",
+      "item": [
+        {
+          "name": "Создать персональные данные",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/personal_data",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "personal_data"
+              ]
+            },
+            "description": "Передаёт персональные данные получателя выплаты для проверки. ID сохраняется в `personal_data_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payout_statement_recipient\",\n  \"last_name\": \"Иванов\",\n  \"first_name\": \"Иван\",\n  \"middle_name\": \"Иванович\",\n  \"birthdate\": \"2000-09-16\",\n  \"metadata\": {\n    \"order_id\": \"37\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"personal_data_id\", data.id);",
+                  "    console.log(\"Сохранён personal_data_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о персональных данных",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/personal_data/{{personal_data_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "personal_data",
+                "{{personal_data_id}}"
+              ]
+            },
+            "description": "Возвращает статус проверки персональных данных."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Самозанятые",
+      "item": [
+        {
+          "name": "Зарегистрировать самозанятого",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/self_employed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "self_employed"
+              ]
+            },
+            "description": "Регистрирует самозанятого для выплат. ID сохраняется в `self_employed_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itn\": \"643211730849\",\n  \"confirmation\": {\n    \"type\": \"redirect\"\n  },\n  \"description\": \"Самозанятый Иван\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"self_employed_id\", data.id);",
+                  "    console.log(\"Сохранён self_employed_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Информация о самозанятом",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/self_employed/{{self_employed_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "self_employed",
+                "{{self_employed_id}}"
+              ]
+            },
+            "description": "Возвращает данные о зарегистрированном самозанятом."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Участники СБП",
+      "item": [
+        {
+          "name": "Список банков СБП",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sbp_banks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sbp_banks"
+              ]
+            },
+            "description": "Возвращает список банков — участников Системы быстрых платежей (для выплат через СБП)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Магазин и вебхуки",
+      "item": [
+        {
+          "name": "Информация о магазине (me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "me"
+              ]
+            },
+            "description": "Возвращает информацию о магазине/шлюзе: `account_id`, статус, включённые способы оплаты, тестовый режим."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Создать вебхук",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotence-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/webhooks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks"
+              ]
+            },
+            "description": "Подписывает приложение на уведомления о событиях (`payment.succeeded`, `payment.canceled`, `refund.succeeded` и др.). Доступно только при авторизации через OAuth-токен. ID сохраняется в `webhook_id`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.succeeded\",\n  \"url\": \"https://www.example.com/notification_url\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "var data = pm.response.json();",
+                  "if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"webhook_id\", data.id);",
+                  "    console.log(\"Сохранён webhook_id = \" + data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Список вебхуков",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/webhooks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks"
+              ]
+            },
+            "description": "Возвращает список настроенных вебхуков приложения (OAuth)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить вебхук",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/webhooks/{{webhook_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webhooks",
+                "{{webhook_id}}"
+              ]
+            },
+            "description": "Удаляет вебхук по идентификатору (OAuth)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Статус-код 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Ответ в формате JSON\", function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
