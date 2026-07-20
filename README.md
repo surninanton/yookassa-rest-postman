@@ -2,6 +2,10 @@
 
 Неофициальная Postman-коллекция для работы с **API ЮKassa (YooKassa) v3**. Собрана по тому же принципу, что и [bitrix24-rest-postman](https://github.com/surninanton/bitrix24-rest-postman): все методы разложены по папкам, авторизация и идемпотентность настроены централизованно, у каждого запроса — реальный пример тела из документации и авто-тесты.
 
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/https%3A%2F%2Fraw.githubusercontent.com%2Fsurninanton%2Fyookassa-rest-postman%2Fmain%2FYooKassa-API.postman_collection.json?action=collection%2Fimport)
+
+> Кнопка импортирует коллекцию в Postman по «сырой» ссылке с GitHub. Если веб-версия попросит войти — можно просто скачать `YooKassa-API.postman_collection.json` и импортировать вручную (**Import → File**).
+
 - Документация API: <https://yookassa.ru/developers/api>
 - Быстрый старт: <https://yookassa.ru/developers/payment-acceptance/getting-started/quick-start>
 
